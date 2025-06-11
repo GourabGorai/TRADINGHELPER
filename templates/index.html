@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClarityTrade</title>
+  <link rel="icon" type="image/png" href="static/favicon.png">
+  <link href="static/style.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Zetta:wght@100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <a href="/">HOME</a>
+      <a href="static/about.html">ABOUT</a>
+    </div>
+    <h2 class="header_title">ClarityTrade</h2>
+    <div>
+      <a href="#prediction-form">RUN</a>
+      <a href="#results">RESULT</a>
+      <a href="#news">RECORD</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="errorMessage" class="error-message">
+      {% if error_message %}
+        {{ error_message }}
+      {% endif %}
+    </div>
+
+    <section class="Hero">
+      <video autoplay muted loop>
+        <source src="static/background-video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div class="overlay">
+        <h1>FROM DATA TO DECISION</h1>
+        <h1>YOUR COMPLETE INVESTMENT ANALYSIS PLATFORM</h1>
+        <h3 class="typing-loop">
+          Where data science meets investment strategy for better financial decisions📈
+        </h3>        
+      </div>
+    </section>
+
+    <!-- Input Section with dropdown -->
+    <section class="input" id="prediction-form">
+      <div class="text">
+        <h3>TRY IT OUT</h3>
+        <h3>YOURSELF</h3>
+      </div>
+      <div>
+        <form class="prediction-form" method="POST" action="/">
+          <div>
+            <label for="symbol">SYMBOL: </label>
+            <select id="symbol" name="symbol" required>
+              <option value="">Select a stock symbol</option>
+              <option value="AAPL">AAPL - Apple</option>
+              <option value="GOOGL">GOOGL - Alphabet</option>
+              <option value="MSFT">MSFT - Microsoft</option>
+              <option value="TSLA">TSLA - Tesla</option>
+              <option value="AMZN">AMZN - Amazon</option>
+              <option value="META">META - Meta</option>
+              <option value="NFLX">NFLX - Netflix</option>
+              <option value="NVDA">NVDA - NVIDIA</option>
+              <option value="IBM">IBM - IBM</option>
+              <option value="INTC">INTC - Intel</option>
+            </select>
+          </div>
+          <div>
+            <label for="date">DATE: </label>
+            <input type="date" id="date" name="future_date" required>
+          </div>
+          <div>
+            <button type="submit" class="button">Run</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="result" id="results">
+      <!-- Candlestick Chart Section -->
+      <div class="chart-container">
+        <h2>STOCK PRICE CHART</h2>
+        {% if candlestick_url %}
+          <iframe src="{{ candlestick_url }}" width="100%" height="500px" frameborder="0"></iframe>
+        {% else %}
+          <p>No candlestick chart available. Please make a prediction to view the chart.</p>
+        {% endif %}
+      </div>
+      
+      <!-- Price Prediction Chart Section -->
+      <div class="chart-container">
+        <h2>PRICE PREDICTION CHART</h2>
+        {% if plot_url %}
+          <iframe src="{{ plot_url }}" width="100%" height="500px" frameborder="0"></iframe>
+        {% else %}
+          <p>No prediction plot available. Please make a prediction to view the plot.</p>
+        {% endif %}
+      </div>
+      
+      <form class="result-form">
+        <div>
+          <label for="last_price">LAST KNOWN PRICE: </label>
+          <input type="text" id="last_price" value="{{ actual_prices[-1] if actual_prices else (session.get('actual_prices', [])[-1] if session.get('actual_prices') else 'N/A') }}" disabled>
+        </div>
+        <div>
+          <label for="pred_price">PREDICTED PRICE: </label>
+          <input type="text" id="pred_price" value="{{ future_prediction if future_prediction else (session.get('future_prediction') if session.get('future_prediction') else 'N/A') }}" disabled>
+        </div>
+        <div>
+          <label for="pred_date">PREDICTION DATE: </label>
+          <input type="text" id="pred_date" value="{{ request.form.get('future_date', 'N/A') }}" disabled>
+        </div>
+        <div>
+          <label for="acc_rate">ACCURACY RATE: </label>
+          <input type="text" id="acc_rate" value="{{ accuracy_score if accuracy_score else (session.get('accuracy_score') if session.get('accuracy_score') else 'N/A') }}%" disabled>
+        </div>
+      </form>
+    </section>
+
+    <!-- Investment Decision & News Section -->
+    <section class="record" id="news">
+      <div class="decision">
+        <h1>INVESTMENT DECISION</h1>
+        <div class="decision-content">
+          {{ investment_decision|safe if investment_decision else (session.get('investment_decision', 'No decision available.')|safe) }}
+        </div>
+      </div>
+      <div class="news">
+        <h1>RELEVANT NEWS</h1>
+        <ul class="news-list">
+          {% if stock_news %}
+            {% for news in stock_news %}
+              <li>{{ news }}</li>
+            {% endfor %}
+          {% elif session.get('stock_news') %}
+            {% for news in session.get('stock_news', []) %}
+              <li>{{ news }}</li>
+            {% endfor %}
+          {% else %}
+            <li>No news available.</li>
+          {% endif %}
+        </ul>
+      </div>
+    </section>
+
+    <!-- Chatbot Section -->
+    <section class="chatbot-section">
+      <h2>Ask Chatbot</h2>
+      <form id="chatbotForm" class="chatbot-form" method="GET" action="/">
+        <input 
+          type="text" 
+          id="chatbotInput" 
+          name="user_query"
+          class="chatbot-input"
+          placeholder="Ask about the investment decision..."
+          required
+          style="width: 60%; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc;"
+        >
+        <button type="submit" class="button" style="padding: 10px 20px; margin-left: 10px;">Ask</button>
+      </form>
+      <div id="chatbotResponse" class="chatbot-response">
+        {% if chatbot_response %}
+          {{ chatbot_response|safe }}
+        {% endif %}
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>2025© All rights reserved by ClarityTrade</span>
+  </footer>
+
+  <script>
+    document.querySelector('.prediction-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const symbol = document.getElementById('symbol').value;
+      const date = document.getElementById('date').value;
+      
+      if (!symbol || !date) {
+        showError('Please fill in all fields');
+        return;
+      }
+      this.submit();
+    });
+
+    function showError(message) {
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    document.getElementById('chatbotForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const query = document.getElementById('chatbotInput').value;
+      
+      if (!query) return;
+
+      const responseDiv = document.getElementById('chatbotResponse');
+      responseDiv.style.display = 'block';
+      responseDiv.innerHTML = 'Loading response...';
+
+      this.submit();
+    });
+
+    // Set today's date as default in the date picker
+    document.addEventListener('DOMContentLoaded', function() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('date').setAttribute('min', today);
+      
+      // Show error message if it exists
+      {% if error_message %}
+        showError('{{ error_message }}');
+      {% endif %}
+      
+      // Show chatbot response area if there's a response
+      {% if chatbot_response %}
+        document.getElementById('chatbotResponse').style.display = 'block';
+      {% endif %}
+    });
+  </script>
+</body>
+</html>
