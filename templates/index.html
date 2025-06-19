@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend+Zetta:wght@100..900&display=swap" rel="stylesheet">
+  <!-- Add DataTables CSS for table styling and interactivity -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 </head>
 <body>
   <header class="header">
@@ -120,6 +122,43 @@
           <input type="text" id="acc_rate" value="{{ accuracy_score if accuracy_score else (session.get('accuracy_score') if session.get('accuracy_score') else 'N/A') }}%" disabled>
         </div>
       </form>
+
+      <!-- Raw Data Table Section -->
+      {% if table_data %}
+        <div class="chart-container">
+          <h2>RAW DATA FOR CURRENT YEAR</h2>
+          <table id="rawDataTable" class="display">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Open</th>
+                <th>High</th>
+                <th>Low</th>
+                <th>Close</th>
+                <th>MA_5</th>
+                <th>MA_10</th>
+                <th>MA_50</th>
+                <th>Predicted Close</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table_data %}
+                <tr>
+                  <td>{{ row.Date }}</td>
+                  <td>{{ row.Open }}</td>
+                  <td>{{ row.High }}</td>
+                  <td>{{ row.Low }}</td>
+                  <td>{{ row.Close }}</td>
+                  <td>{{ row.MA_5 if row.MA_5 is not none else '-' }}</td>
+                  <td>{{ row.MA_10 if row.MA_10 is not none else '-' }}</td>
+                  <td>{{ row.MA_50 if row.MA_50 is not none else '-' }}</td>
+                  <td>{{ row.Predicted_Close if row.Predicted_Close is not none else '-' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     </section>
 
     <!-- Investment Decision & News Section -->
@@ -175,7 +214,21 @@
     <span>2025© All rights reserved by ClarityTrade</span>
   </footer>
 
+  <!-- Add jQuery and DataTables JS for table functionality -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
   <script>
+    // Initialize DataTable for raw data table
+    $(document).ready(function() {
+      $('#rawDataTable').DataTable({
+        paging: true,
+        pageLength: 10,
+        searching: true,
+        ordering: true,
+        order: [[0, 'desc']] // Sort by Date descending by default
+      });
+    });
+
     document.querySelector('.prediction-form').addEventListener('submit', function(e) {
       e.preventDefault();
       const symbol = document.getElementById('symbol').value;
