@@ -410,8 +410,9 @@ def index():
     future_dates = []
     future_prediction = None
     accuracy_score = None
-    chatbot_response=None
+    chatbot_response = None
     candlestick_url = None
+    table_data = []  # New variable to store table data
 
     if request.method == 'POST':
         symbol = request.form['symbol'].upper()
@@ -421,14 +422,13 @@ def index():
         df = fetch_stock_data(symbol)
 
         if df is not None:
-            # First add technical indicators to the DataFrame
+            # Add technical indicators to the DataFrame
             df = add_technical_indicators(df)
             
-            # Now we can plot the candlestick chart
+            # Plot the candlestick chart
             candlestick_url = plot_candlestick(df, symbol)
             
             df2 = df[df.index <= f'{year_prv}-12-29']
-
             model, scaler = train_random_forest(df2)
 
             if future_date_str:
@@ -439,7 +439,7 @@ def index():
                     error_message = "No prediction available."
                     return render_template('index.html', predicted_prices=predicted_prices, actual_prices=actual_prices,
                                            future_dates=future_dates, error_message=error_message, future_prediction=future_prediction,
-                                           accuracy_score=accuracy_score, candlestick_url=candlestick_url)
+                                           accuracy_score=accuracy_score, candlestick_url=candlestick_url, table_data=table_data)
 
                 future_df = df.copy()
                 current_date = last_date
@@ -469,7 +469,6 @@ def index():
                 log_prediction_to_db(session['email'], symbol, future_date, future_prediction)
 
             current_year = datetime.now().year
-
             start_date = datetime(current_year, 1, 1)
             end_date = datetime.now()
             date_range = pd.date_range(start=start_date, end=end_date)
@@ -484,6 +483,27 @@ def index():
                     predicted_prices.append(predicted_price)
                     actual_prices.append(df.loc[date]['Close'])
                     future_dates.append(date)
+
+            # Prepare table data for the current year
+            df_current_year = df[df.index >= f"{current_year}-01-01"]
+            for date in df_current_year.index:
+                predicted_price = None
+                if date in future_dates:
+                    idx = future_dates.index(date)
+                    predicted_price = round(predicted_prices[idx], 2) if idx < len(predicted_prices) else None
+
+                row = {
+                    'Date': date.strftime('%Y-%m-%d'),
+                    'Open': round(df_current_year.loc[date]['Open'], 2),
+                    'High': round(df_current_year.loc[date]['High'], 2),
+                    'Low': round(df_current_year.loc[date]['Low'], 2),
+                    'Close': round(df_current_year.loc[date]['Close'], 2),
+                    'MA_5': round(df_current_year.loc[date]['MA_5'], 2) if 'MA_5' in df_current_year.loc[date] else None,
+                    'MA_10': round(df_current_year.loc[date]['MA_10'], 2) if 'MA_10' in df_current_year.loc[date] else None,
+                    'MA_50': round(df_current_year.loc[date]['MA_50'], 2) if 'MA_50' in df_current_year.loc[date] else None,
+                    'Predicted_Close': predicted_price
+                }
+                table_data.append(row)
 
             accuracy_score = round(r2_score(actual_prices, predicted_prices) * 100, 2)
             plot_filename = plot_prices(future_dates, predicted_prices, actual_prices)
@@ -535,7 +555,8 @@ def index():
             return render_template('index.html', predicted_prices=predicted_prices, actual_prices=actual_prices,
                                    future_dates=future_dates, plot_url=plot_filename, future_prediction=future_prediction,
                                    accuracy_score=accuracy_score, investment_decision=investment_decision, stock_news=stock_news,
-                                   chatbot_response=chatbot_response, show_chatbot=True, candlestick_url=candlestick_url)
+                                   chatbot_response=chatbot_response, show_chat=True, candlestick_url=candlestick_url,
+                                   table_data=table_data)  # Pass table_data to template
 
         else:
             error_message = "Failed to fetch stock data. Try Again Later."
@@ -555,31 +576,33 @@ def index():
             query = f"As you have provided {session.get('investment_decision')}. Now my question is {user_question}. If the question is out of the context, only say 'out of context'."
             chatbot_response = format_investment_decision(chat_with_gemini(query))
             return render_template('index.html', 
-                                chatbot_response=chatbot_response, 
-                                investment_decision=investment_decision2,
-                                predicted_prices=predicted_prices2,
-                                actual_prices=actual_prices2,
-                                stock_news=stock_news2,
-                                future_prediction=future_prediction2,
-                                accuracy_score=accuracy_score2,
-                                plot_url=plot_url2,
-                                candlestick_url=candlestick_url2)
+                                  chatbot_response=chatbot_response, 
+                                  investment_decision=investment_decision2,
+                                  predicted_prices=predicted_prices2,
+                                  actual_prices=actual_prices2,
+                                  stock_news=stock_news2,
+                                  future_prediction=future_prediction2,
+                                  accuracy_score=accuracy_score2,
+                                  plot_url=plot_url2,
+                                  candlestick_url=candlestick_url2,
+                                  table_data=table_data)  # Pass empty table_data for GET
         else:
             return render_template('index.html', 
-                                predicted_prices=predicted_prices, 
-                                actual_prices=actual_prices,
-                                error_message="No response from chatbot, please try again.", 
-                                future_prediction=future_prediction,
-                                accuracy_score=accuracy_score,
-                                candlestick_url=candlestick_url)
+                                  predicted_prices=predicted_prices, 
+                                  actual_prices=actual_prices,
+                                  error_message="No response from chatbot, please try again.", 
+                                  future_prediction=future_prediction, 
+                                  accuracy_score=accuracy_score,
+                                  candlestick_url=candlestick_url,
+                                  table_data=table_data)  # Pass empty table_data for GET
 
-    return render_template('index.html', 
-                          predicted_prices=predicted_prices, 
-                          actual_prices=actual_prices,
-                          error_message=error_message, 
-                          future_prediction=future_prediction, 
-                          accuracy_score=accuracy_score,
-                          candlestick_url=candlestick_url)
-
+    return render_template('index.html',
+                           predicted_prices=predicted_prices, 
+                           actual_prices=actual_prices,
+                           error_message=error_message, 
+                           future_prediction=future_prediction, 
+                           accuracy_score=accuracy_score,
+                           candlestick_url=candlestick_url,
+                           table_data=table_data)  # Pass table_data
 if __name__ == '__main__':
     app.run(debug=True)
